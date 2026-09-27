@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Diseña tu Taza 3D</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: Arial, sans-serif;
+    }
+    body {
+      background-color: #f4f6f9;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+    }
+    .card {
+      background: #ffffff;
+      padding: 25px;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 500px;
+    }
+    h2 {
+      text-align: center;
+      margin-top: 0;
+      color: #333;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 5px;
+      color: #555;
+      font-size: 14px;
+    }
+    input[type="text"], input[type="tel"] {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    .file-btn {
+      display: block;
+      background-color: #0d6efd;
+      color: white;
+      text-align: center;
+      padding: 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      margin-top: 10px;
+    }
+    .file-btn:hover {
+      background-color: #0b5ed7;
+    }
+    input[type="file"] {
+      display: none;
+    }
+    .info-text {
+      font-size: 11px;
+      color: #6c757d;
+      margin-top: 6px;
+      text-align: center;
+    }
+    .instruction-text {
+      font-size: 13px;
+      color: #495057;
+      text-align: center;
+      margin: 15px 0 10px 0;
+    }
+    #canvas-container {
+      width: 100%;
+      height: 320px;
+      background-color: #e9ecef;
+      border-radius: 8px;
+      overflow: hidden;
+      position: relative;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: grab;
+    }
+    canvas:active {
+      cursor: grabbing;
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+
+  <div class="card">
+    <h2>Diseña tu Taza 3D</h2>
+
+    <div class="form-group">
+      <label>Nombre:</label>
+      <input type="text" placeholder="Tu nombre">
+    </div>
+
+    <div class="form-group">
+      <label>Apellido:</label>
+      <input type="text" placeholder="Tu apellido">
+    </div>
+
+    <div class="form-group">
+      <label>Número de Teléfono:</label>
+      <input type="tel" placeholder="Ej: 11XXXXXXXX">
+    </div>
+
+    <div class="form-group">
+      <label>Imagen panorámica (Medida útil: 20x9 cm):</label>
+      <label for="imageLoader" class="file-btn">📁 Elegir archivo de imagen</label>
+      <input type="file" id="imageLoader" accept="image/*">
+      <div class="info-text">Calidad requerida: 300 DPI (Mínimo recomendado: 2362 x 1063 píxeles)</div>
+    </div>
+
+    <div class="instruction-text">
+      Arrastra con el dedo o el mouse horizontalmente para rotar la taza y su asa en 360°
+    </div>
+
+    <div id="canvas-container"></div>
+  </div>
+
+  <script>
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xe9ecef);
+
+    const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+    camera.position.set(0, 2, 9);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    container.appendChild(renderer.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.rotateSpeed = 0.8;
+    controls.enableZoom = false;
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+    scene.add(ambientLight);
+
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
+    dirLight.position.set(5, 10, 7);
+    scene.add(dirLight);
+
+    const mugGroup = new THREE.Group();
+    scene.add(mugGroup);
+
+    const mugMaterial = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      roughness: 0.25,
+      metalness: 0.05
+    });
+
+    // 1. Cilindro exterior para el estampado (deja una brecha exacta de 30° donde va el asa)
+    const bodyGeometry = new THREE.CylinderGeometry(2.005, 2.005, 4, 64, 1, true, -Math.PI / 2 + 0.12, Math.PI * 2 - 0.24);
+    const bodyMesh = new THREE.Mesh(bodyGeometry, mugMaterial);
+ bodyMesh.rotation.y = Math.PI;
+    mugGroup.add(bodyMesh);
+
+    // Cilindro interno blanco para dar fondo en el espacio del asa
+    const fillGeometry = new THREE.CylinderGeometry(1.99, 1.99, 4, 64, 1, true);
+    const fillMesh = new THREE.Mesh(fillGeometry, mugMaterial);
+    mugGroup.add(fillMesh);
+
+    // 2. Interior, fondo y borde superior
+    const insideGeometry = new THREE.CylinderGeometry(1.85, 1.85, 3.9, 64, 1, true);
+    const insideMesh = new THREE.Mesh(insideGeometry, mugMaterial);
+    mugGroup.add(insideMesh);
+
+    const bottomGeometry = new THREE.CylinderGeometry(2, 2, 0.1, 64);
+    const bottomMesh = new THREE.Mesh(bottomGeometry, mugMaterial);
+    bottomMesh.position.y = -2;
+    mugGroup.add(bottomMesh);
+
+    const rimGeometry = new THREE.TorusGeometry(1.925, 0.075, 16, 64);
+    const rimMesh = new THREE.Mesh(rimGeometry, mugMaterial);
+    rimMesh.rotation.x = Math.PI / 2;
+    rimMesh.position.y = 2;
+    mugGroup.add(rimMesh);
+
+    // 3. Asa de la taza (Ubicación fija alineada con la brecha blanca)
+    const handleGeometry = new THREE.TorusGeometry(1.2, 0.25, 16, 64, Math.PI);
+    const handleMesh = new THREE.Mesh(handleGeometry, mugMaterial);
+    handleMesh.position.set(2, 0, 0);
+    handleMesh.rotation.z = -Math.PI / 2;
+    mugGroup.add(handleMesh);
+
+    // Cargar imagen
+    const imageLoader = document.getElementById('imageLoader');
+    imageLoader.addEventListener('change', handleImage, false);
+
+    function handleImage(e) {
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        const img = new Image();
+        img.onload = function() {
+          const texture = new THREE.Texture(img);
+          texture.needsUpdate = true;
+          texture.wrapS = THREE.RepeatWrapping;
+          texture.wrapT = THREE.ClampToEdgeWrapping;
+                      
+
+          bodyMesh.material = new THREE.MeshStandardMaterial({
+            map: texture,
+            roughness: 0.25,
+            metalness: 0.05
+          });
+        };
+        img.src = event.target.result;
+      };
+      if (e.target.files[0]) {
+        reader.readAsDataURL(e.target.files[0]);
+      }
+    }
+
+    window.addEventListener('resize', () => {
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    });
+
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+
+</body>
+</html>
