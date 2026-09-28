@@ -41,12 +41,19 @@
       color: #555;
       font-size: 14px;
     }
-    input[type="text"], input[type="tel"] {
+    input[type="text"] {
       width: 100%;
       padding: 10px;
       border: 1px solid #ccc;
       border-radius: 6px;
       font-size: 14px;
+    }
+    .aclaracion-text {
+      font-size: 12px;
+      color: #666;
+      margin-top: 6px;
+      font-style: italic;
+      line-height: 1.4;
     }
     .file-btn {
       display: block;
@@ -94,6 +101,49 @@
     canvas:active {
       cursor: grabbing;
     }
+    .mp-box {
+      background-color: #e3f2fd;
+      border: 1px solid #90caf9;
+      color: #0d47a1;
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 14px;
+      margin-top: 15px;
+      text-align: center;
+    }
+    .mp-box strong {
+      font-size: 16px;
+      color: #0080ff;
+    }
+    .payment-notice {
+      background-color: #fff3cd;
+      border: 1px solid #ffe69c;
+      color: #664d03;
+      padding: 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      margin-top: 10px;
+      text-align: center;
+    }
+    .btn-whatsapp {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+      background-color: #00bb2d;
+      color: white;
+      padding: 14px;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 15px;
+      transition: background-color 0.2s ease;
+    }
+    .btn-whatsapp:hover {
+      background-color: #009924;
+    }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
@@ -104,18 +154,11 @@
     <h2>Diseña tu Taza 3D</h2>
 
     <div class="form-group">
-      <label>Nombre:</label>
-      <input type="text" placeholder="Tu nombre">
-    </div>
-
-    <div class="form-group">
-      <label>Apellido:</label>
-      <input type="text" placeholder="Tu apellido">
-    </div>
-
-    <div class="form-group">
-      <label>Número de Teléfono:</label>
-      <input type="tel" placeholder="Ej: 11XXXXXXXX">
+      <label>Nombre y Apellido:</label>
+      <input type="text" id="nombreApellido" placeholder="Tu nombre y apellido completo">
+      <div class="aclaracion-text">
+        (Este es el resultado de cómo te quedará tu taza. Si quieres tener tu taza personalizada en mano, envía un mensaje al WhatsApp)
+      </div>
     </div>
 
     <div class="form-group">
@@ -130,6 +173,19 @@
     </div>
 
     <div id="canvas-container"></div>
+
+    <!-- Sección del Alias Mercado Pago -->
+    <div class="mp-box">
+      💳 <strong>Alias Mercado Pago:</strong> <br>
+      <strong id="aliasMp">mipago.app</strong>
+    </div>
+
+    <!-- Aviso de pago/seña -->
+    <div class="payment-notice">
+      ⚠️ <strong>Aviso importante:</strong> Se debe abonar seña/pago correspondiente para iniciar la producción.
+    </div>
+
+    <button class="btn-whatsapp" id="btnWhatsapp">Enviar Pedido por WhatsApp</button>
   </div>
 
   <script>
@@ -167,18 +223,15 @@
       metalness: 0.05
     });
 
-    // 1. Cilindro exterior para el estampado (deja una brecha exacta de 30° donde va el asa)
-    const bodyGeometry = new THREE.CylinderGeometry(2.005, 2.005, 4, 64, 1, true, -Math.PI / 2 + 0.12, Math.PI * 2 - 0.24);
+    const bodyGeometry = new THREE.CylinderGeometry(2.005, 2.005, 4, 64, 1, true, -Math.PI / 2 + 0.14, Math.PI * 2 - 0.24);
     const bodyMesh = new THREE.Mesh(bodyGeometry, mugMaterial);
- bodyMesh.rotation.y = Math.PI;
+    bodyMesh.rotation.y = Math.PI;
     mugGroup.add(bodyMesh);
 
-    // Cilindro interno blanco para dar fondo en el espacio del asa
     const fillGeometry = new THREE.CylinderGeometry(1.99, 1.99, 4, 64, 1, true);
     const fillMesh = new THREE.Mesh(fillGeometry, mugMaterial);
     mugGroup.add(fillMesh);
 
-    // 2. Interior, fondo y borde superior
     const insideGeometry = new THREE.CylinderGeometry(1.85, 1.85, 3.9, 64, 1, true);
     const insideMesh = new THREE.Mesh(insideGeometry, mugMaterial);
     mugGroup.add(insideMesh);
@@ -194,14 +247,12 @@
     rimMesh.position.y = 2;
     mugGroup.add(rimMesh);
 
-    // 3. Asa de la taza (Ubicación fija alineada con la brecha blanca)
     const handleGeometry = new THREE.TorusGeometry(1.2, 0.25, 16, 64, Math.PI);
     const handleMesh = new THREE.Mesh(handleGeometry, mugMaterial);
     handleMesh.position.set(2, 0, 0);
     handleMesh.rotation.z = -Math.PI / 2;
     mugGroup.add(handleMesh);
 
-    // Cargar imagen
     const imageLoader = document.getElementById('imageLoader');
     imageLoader.addEventListener('change', handleImage, false);
 
@@ -212,9 +263,8 @@
         img.onload = function() {
           const texture = new THREE.Texture(img);
           texture.needsUpdate = true;
-          texture.wrapS = THREE.RepeatWrapping;
+          texture.wrapS = THREE.ClampToEdgeWrapping;
           texture.wrapT = THREE.ClampToEdgeWrapping;
-                      
 
           bodyMesh.material = new THREE.MeshStandardMaterial({
             map: texture,
@@ -228,6 +278,52 @@
         reader.readAsDataURL(e.target.files[0]);
       }
     }
+
+    document.getElementById('btnWhatsapp').addEventListener('click', function() {
+      const nombreApellido = document.getElementById('nombreApellido').value.trim();
+      const fileInput = document.getElementById('imageLoader');
+
+      if (!nombreApellido) {
+        alert('Por favor ingresa tu Nombre y Apellido antes de enviar.');
+        return;
+      }
+
+      // Reemplaza con tu número telefónico con código de país (ej: 5491164812121)
+      const NUMERO_WHATSAPP = "5491164812121"; 
+
+      if (fileInput.files.length > 0) {
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+
+        fetch('https://tmpfiles.org/api/v1/upload', {
+          method: 'POST',
+          body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.status === 'success') {
+            const urlImagen = data.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
+
+            let mensaje = `*¡Hola! Quiero realizar un pedido de Taza Personalizada 3D*%0A%0A`;
+            mensaje += `*Nombre y Apellido:* ${nombreApellido}%0A`;
+            mensaje += `*Pago/Seña:* Mercado Pago%0A`;
+            mensaje += `*Link de la imagen:* ${urlImagen}`;
+
+            window.open(`https://wa.me/${NUMERO_WHATSAPP}?text=${mensaje}`, '_blank');
+          } else {
+            alert('Error al procesar la imagen. Inténtalo de nuevo.');
+          }
+        })
+        .catch(() => alert('Error de conexión al subir la imagen.'));
+      } else {
+        let mensaje = `*¡Hola! Quiero realizar un pedido de Taza Personalizada 3D*%0A%0A`;
+        mensaje += `*Nombre y Apellido:* ${nombreApellido}%0A`;
+        mensaje += `*Pago/Seña:* Mercado Pago%0A`;
+        mensaje += `*Imagen:* No cargó ninguna imagen.`;
+
+        window.open(`https://wa.me/${NUMERO_WHATSAPP}?text=${mensaje}`, '_blank');
+      }
+    });
 
     window.addEventListener('resize', () => {
       camera.aspect = container.clientWidth / container.clientHeight;
@@ -245,3 +341,4 @@
 
 </body>
 </html>
+
